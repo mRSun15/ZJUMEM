@@ -15,6 +15,81 @@ struct buddy_sys buddy;
 //{
 //	bp->bplevel = bplevel;
 //}
+void buddy_list_add(struct list_head *new, struct list_head *head, int level ){
+    //freelist's head, without value!
+    struct page* newPage;
+    newPage= container_of(new, struct page, list);
+    unsigned int newPageNumber = newPage - pages;
+    if(!level)
+    {
+        // the lowest level---->1 page size(4KB)
+        // the relative-small memory, which we deemed it a up order based on the address
+        int flag = 0;
+        struct list_head *tempList = head->next;
+        struct list_head *endList = head->prev;
+        struct page *tmp;
+        struct page *end;
+        tmp = container_of(head->next, struct page, list);
+        end = container_of(head->prev, struct page, list);
+        while(tmp != end){
+            unsigned int currentPageNumber = tmp - pages;
+            if(currentPageNumber >= newPageNumber)
+            {    
+                flag = 1;
+                list_add(new, tempList->prev);
+                break;
+            }
+            tempList = tempList->next;
+            tmp = container_of(tempList, struct page, list);
+        }
+        if(!flag)
+        {
+            unsigned int currentPageNumber = end-pages;
+            if(currentPageNumber >= newPageNumber)
+            {
+                flag = 1;
+                list_add(new, endList->prev);
+            }else{
+                flag = 1;
+                list_add(new, endList);
+            }
+        }
+
+    }else if(level > 0)
+    {
+        // the relative-large memory, which we deemed it a descending order based on the address
+        int flag = 0;
+        struct list_head *tempList = head->next;
+        struct list_head *endList = head->prev;
+        struct page *tmp;
+        struct page *end;
+        tmp = container_of(head->next, struct page, list);
+        end = container_of(head->prev, struct page, list);
+        while(tmp != end){
+            unsigned int currentPageNumber = tmp - pages;
+            if(currentPageNumber <= newPageNumber)
+            {    
+                flag = 1;
+                list_add(new, tempList->prev);
+                break;
+            }
+            tempList = tempList->next;
+            tmp = container_of(tempList, struct page, list);
+        }
+        if(!flag)
+        {
+            unsigned int currentPageNumber = end-pages;
+            if(currentPageNumber <= newPageNumber)
+            {
+                flag = 1;
+                list_add(new, endList->prev);
+            }else{
+                flag = 1;
+                list_add(new, endList);
+            }
+        }
+    }
+}
 
 void buddy_info() {
     unsigned int index;
@@ -127,7 +202,8 @@ void __free_pages(struct page *pbpage, unsigned int bplevel) {
         ++bplevel;
     }
     set_bplevel(pbpage, bplevel);
-    list_add(&(pbpage->list), &(buddy.freelist[bplevel].free_head));
+//    list_add(&(pbpage->list), &(buddy.freelist[bplevel].free_head));
+    buddy_list_add(&(pbpage->list), &(buddy.freelist[bplevel].free_head), bplevel);
     ++buddy.freelist[bplevel].nr_free;
     // kernel_printf("v%x__addto__%x\n", &(pbpage->list),
     // &(buddy.freelist[bplevel].free_head));
@@ -151,7 +227,15 @@ struct page *__alloc_pages(unsigned int bplevel) {
     return 0;
 
 found:
-    page = container_of(free->free_head.next, struct page, list);
+    if(!bplevel && current_order)
+    {
+        // alloc from the samll part
+        page = container_of(free->free_head.prev, struct page, list);
+
+    }else 
+    {
+        page = container_of(free->free_head.next, struct page, list);
+    }
     list_del_init(&(page->list));
     set_bplevel(page, bplevel);
     set_flag(page, _PAGE_ALLOCED);
@@ -164,7 +248,8 @@ found:
         --current_order;
         size >>= 1;
         buddy_page = page + size;
-        list_add(&(buddy_page->list), &(free->free_head));
+//        list_add(&(buddy_page->list), &(free->free_head));
+        buddy_list_add(&(buddy_page->list), &(free->free_head), current_order);
         ++(free->nr_free);
         set_bplevel(buddy_page, current_order);
     }

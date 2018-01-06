@@ -6,6 +6,18 @@
         "string": "c",
         "string_view": "c",
         "bitset": "c",
-        "system_error": "c"
+        "system_error": "c",
+        "list": "c",
+        "__functional_base": "c",
+        "atomic": "c",
+        "chrono": "c",
+        "functional": "c",
+        "iterator": "c",
+        "limits": "c",
+        "locale": "c",
+        "memory": "c",
+        "ratio": "c",
+        "tuple": "c",
+        "type_traits": "c"
     }
 }

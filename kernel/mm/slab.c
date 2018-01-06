@@ -61,7 +61,10 @@ void format_slabpage(struct kmem_cache *cache, struct page *page) {
     struct slab_head *s_head = (struct slab_head *)moffset;
     unsigned int *ptr;
     unsigned int remaining = (1 << PAGE_SHIFT);
-
+    unsigned int startAddress;
+    moffset = (unsigned char *)(moffset + sizeof(struct slab_head));
+    remaining -=  sizeof(struct slab_head);
+    startAddress = (unsigned int)moffset;
     set_flag(page, _PAGE_SLAB);
     do {
         ptr = (unsigned int *)(moffset + cache->offset);
@@ -75,7 +78,7 @@ void format_slabpage(struct kmem_cache *cache, struct page *page) {
     s_head->nr_objs = 0;
 
     cache->cpu.page = page;
-    cache->cpu.freeobj = (void **)(*ptr + cache->offset);
+    cache->cpu.freeobj = (void **)(&startAddress);
     page->virtual = (void *)cache;
     page->slabp = (unsigned int)(*(cache->cpu.freeobj));
 }
@@ -127,7 +130,7 @@ slalloc_check:
         cache->cpu.page = container_of(cache->node.partial.next, struct page, list);
         list_del(cache->node.partial.next);
         object = (void *)(cache->cpu.page->slabp);
-        cache->cpu.freeobj = (void **)((unsigned char *)object + cache->offset);
+        // cache->cpu.freeobj = (void **)((unsigned char *)object + cache->offset);
         goto slalloc_check;
     }
 slalloc_normal:

@@ -47,7 +47,7 @@ void init_buddy() {
 
     // this function is to allocate enough spaces for Page_Frame_Space
     // all the memory is included, the kernel space is also allocated memory space
-    bp_base = bootmm_alloc_pages(bpsize * bmm.max_pfn, _MM_KERNEL, 1 << PAGE_SHIFT);
+    bp_base = bootmm_alloc_pages(bpsize * bmm.maxPhysicalFrameNumber, _MM_KERNEL, 1 << PAGE_SHIFT);
 
     if (!bp_base) {
         // the remaining memory must be large enough to allocate the whole group
@@ -60,20 +60,20 @@ void init_buddy() {
     // ?????, this code is used for?
     pages = (struct page *)((unsigned int)bp_base | 0x80000000);
 
-    init_pages(0, bmm.max_pfn); //from pages[0] to pages[n]
+    init_pages(0, bmm.maxPhysicalFrameNumber); //from pages[0] to pages[n]
 
     kernel_start_pfn = 0;
     kernel_end_pfn = 0;
-    for (i = 0; i < bmm.cnt_infos; ++i) {
-        if (bmm.info[i].end > kernel_end_pfn)
-            kernel_end_pfn = bmm.info[i].end;
+    for (i = 0; i < bmm.countInfos; ++i) {
+        if (bmm.info[i].endFramePtr > kernel_end_pfn)
+            kernel_end_pfn = bmm.info[i].endFramePtr;
     }
     kernel_end_pfn >>= PAGE_SHIFT;
 
     //?????, why the MAX_BUDDY_ORDER
     buddy.buddy_start_pfn = (kernel_end_pfn + (1 << MAX_BUDDY_ORDER) - 1) &
                             ~((1 << MAX_BUDDY_ORDER) - 1);              // the pages that bootmm using cannot be merged into buddy_sys
-    buddy.buddy_end_pfn = bmm.max_pfn & ~((1 << MAX_BUDDY_ORDER) - 1);  // remain 2 pages for I/O
+    buddy.buddy_end_pfn = bmm.maxPhysicalFrameNumber & ~((1 << MAX_BUDDY_ORDER) - 1);  // remain 2 pages for I/O
     //both the start and end pfn is the page_frame_number
 
     // init freelists of all bplevels

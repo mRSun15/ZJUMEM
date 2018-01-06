@@ -63,23 +63,24 @@ extern unsigned int firstusercode_len;
 extern struct bootmm bmm;
 
 extern unsigned int get_phymm_size();
-
+//set the content of struct bootmm_info
 extern void set_mminfo(struct bootmm_info* info, unsigned int start, unsigned int end, unsigned int type);
-
-extern unsigned int insert_mminfo(struct bootmm* mm, unsigned int start, unsigned int end, unsigned int type);
-
-extern unsigned int split_mminfo(struct bootmm* mm, unsigned int index, unsigned int split_start);
-
-extern void remove_mminfo(struct bootmm* mm, unsigned int index);
+//insert a bootmm_info into bootmm_sys, more specific, into info[]
+extern unsigned int insert_mminfo(struct bootmm *memoryManage, unsigned int start, unsigned int end, unsigned int type); 
+//get one sequential memory area to be split into two parts
+extern unsigned int split_mminfo(struct bootmm *memoryManagement, unsigned int index, unsigned int splitAddress);
+//remove the mminfo in the info[]
+extern void remove_mminfo(struct bootmm* memeoryManagement, unsigned int index);
 
 extern void init_bootmm();
-
-extern void set_maps(unsigned int s_pfn, unsigned int cnt, unsigned char value);
-
-extern unsigned char* find_pages(unsigned int page_cnt, unsigned int s_pfn, unsigned int e_pfn, unsigned int align_pfn);
-
+//set value of page-bitmap-indicator
+extern void set_maps(unsigned int startFrameNumber, unsigned int count, unsigned char value);
+// find sequential page_cnt number of pages to allocate
+extern unsigned char* find_pages(unsigned int pageCount, unsigned int startPhysicalFrameNumber, unsigned int endPhysicalFrameNumber
+                            , unsigned int allignPhysicalFrameNumber);
+//allocate enough pages(mem) for the kernel, it will use the find_pages funcrtion
 extern unsigned char* bootmm_alloc_pages(unsigned int size, unsigned int type, unsigned int align);
-
-extern void bootmap_info(unsigned char* msg);
+//get bootmap's info
+extern void bootmap_info();
 
 #endif

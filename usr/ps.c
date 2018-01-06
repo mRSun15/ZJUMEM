@@ -104,7 +104,7 @@ void parse_cmd() {
         sd_write_block(sd_buffer, 7, 1);
         kernel_puts("sdwz\n", 0xfff, 0);
     } else if (kernel_strcmp(ps_buffer, "mminfo") == 0) {
-        bootmap_info("bootmm");
+        bootmap_info();
         buddy_info();
     } else if (kernel_strcmp(ps_buffer, "mmtest") == 0) {
         kernel_printf("kmalloc : %x, size = 1KB\n", kmalloc(1024));

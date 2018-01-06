@@ -14,7 +14,7 @@
  * @nr_objs : keeps the numbers of memory segments that has been allocated
  */
 struct slab_head {
-    void **end_ptr;
+    void *end_ptr;
     unsigned int nr_objs;
 };
 

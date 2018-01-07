@@ -160,11 +160,16 @@ void parse_cmd() {
         void *address3 = kmalloc(1024);
         kernel_printf("kmalloc : %x, size = 4KB\n", address3);
         kfree(address2);
+        kfree(address1);
+        kfree(address2);
         address2 = kmalloc(1024);
         kernel_printf("kmalloc : %x, size = 4KB\n", address2);
         address2 = kmalloc(1024);
         kernel_printf("kmalloc : %x, size = 4KB\n", address2);
-        
+        address2 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address2);
+        address2 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address2);
     }
     else {
         kernel_puts(ps_buffer, 0xfff, 0);

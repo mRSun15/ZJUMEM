@@ -22,7 +22,7 @@ struct page {
                               * 		represents the number of objects in current
                               * if the page is of _PAGE_SLAB, then bplevel is the sl_objs
                               */
-    unsigned int slabp;      /* if the page is used by slab system,
+    void** slabp;      /* if the page is used by slab system,
                               * then slabp represents the base-addr of free space
                               */
 };

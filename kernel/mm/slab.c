@@ -14,6 +14,25 @@ struct kmem_cache kmalloc_caches[PAGE_SHIFT];
 
 static unsigned int size_kmem_cache[PAGE_SHIFT] = {96, 192, 8, 16, 32, 64, 128, 256, 512, 1024, 1536, 2048};
 
+unsigned int judge_slab_free(struct kmem_cache *cache, void *object){
+    struct page* objectPage = pages + ((unsigned int)object >> PAGE_SHIFT);
+    object = (void *)((unsigned int)object | KERNEL_ENTRY);
+    void **freeSpacePtr = objectPage->slabp;
+    unsigned int flag = 0;//not found
+    while(!(is_bound((unsigned int )(*(freeSpacePtr)), 1 << PAGE_SHIFT)))
+    {
+        if(*(freeSpacePtr) == object)
+        {    
+            flag = 1;
+            break;
+        }
+        freeSpacePtr = (void **)((unsigned int)*(freeSpacePtr) + cache->offset);
+    }
+    if(flag != 0)
+        return 1;
+    else
+        return 0;
+}
 // init the struct kmem_cache_cpu
 void init_kmem_cpu(struct kmem_cache_cpu *kcpu) {
     kcpu->page = 0;
@@ -62,7 +81,9 @@ void format_slabpage(struct kmem_cache *cache, struct page *page) {
     unsigned int *ptr;
     unsigned int remaining = (1 << PAGE_SHIFT);
     unsigned int startAddress;
-    moffset = (unsigned char *)(moffset + sizeof(struct slab_head));
+    moffset += (unsigned int)sizeof(struct slab_head);
+    //kernel_printf("slab_head's size is: %x\n", (unsigned int)sizeof(struct slab_head));
+
     remaining -=  sizeof(struct slab_head);
     startAddress = (unsigned int)moffset;
     set_flag(page, _PAGE_SLAB);
@@ -80,7 +101,7 @@ void format_slabpage(struct kmem_cache *cache, struct page *page) {
     cache->cpu.page = page;
     cache->cpu.freeobj = (void **)(&startAddress);
     page->virtual = (void *)cache;
-    page->slabp = (unsigned int)(*(cache->cpu.freeobj));
+    page->slabp = (cache->cpu.freeobj);
 }
 
 void *slab_alloc(struct kmem_cache *cache) {
@@ -88,9 +109,10 @@ void *slab_alloc(struct kmem_cache *cache) {
     void *object = 0;
     struct page *newpage;
 
-    if (cache->cpu.freeobj)
+    if (cache->cpu.freeobj){
         object = *(cache->cpu.freeobj);
-
+    }
+    //kernel_printf("slab_alloc's object is: %x\n", object);
 slalloc_check:
     // 1st: check if the freeobj is in the boundary situation
     if (is_bound((unsigned int)object, (1 << PAGE_SHIFT))) {
@@ -129,18 +151,20 @@ slalloc_check:
         //#define container_of(ptr, type, member) ((type*)((char*)ptr - (char*)&(((type*)0)->member)))
         cache->cpu.page = container_of(cache->node.partial.next, struct page, list);
         list_del(cache->node.partial.next);
-        object = (void *)(cache->cpu.page->slabp);
-        // cache->cpu.freeobj = (void **)((unsigned char *)object + cache->offset);
+        //kernel_printf("cpu.freeobj is: %x\n", cache->cpu.page->slabp);
+        cache->cpu.freeobj = cache->cpu.page->slabp;
+        object = (void *)(*(cache->cpu.freeobj));
+        //kernel_printf("cpu.page->slabp is: %x\n", object);
         goto slalloc_check;
     }
 slalloc_normal:
     cache->cpu.freeobj = (void **)((unsigned char *)object + cache->offset);
-    cache->cpu.page->slabp = (unsigned int)(*(cache->cpu.freeobj));
+    cache->cpu.page->slabp = (cache->cpu.freeobj);
     s_head = (struct slab_head *)KMEM_ADDR(cache->cpu.page, pages);
     ++(s_head->nr_objs);
 slalloc_end:
     // slab may be full after this allocation
-    if (is_bound(cache->cpu.page->slabp, 1 << PAGE_SHIFT)) {
+    if (is_bound((unsigned int )(*(cache->cpu.page->slabp)), 1 << PAGE_SHIFT)) {
         list_add_tail(&(cache->cpu.page->list), &(cache->node.full));
         init_kmem_cpu(&(cache->cpu));
     }
@@ -149,9 +173,13 @@ slalloc_end:
 
 void slab_free(struct kmem_cache *cache, void *object) {
     struct page *opage = pages + ((unsigned int)object >> PAGE_SHIFT);
+    object = (void *)((unsigned int)object | KERNEL_ENTRY);
+    kernel_printf("slab_free is : %x\n", object);
     unsigned int *ptr;
     struct slab_head *s_head = (struct slab_head *)KMEM_ADDR(opage, pages);
-    kernel_printf("slab_free_1\n");
+    //kernel_printf("slab_head is: %x\n", s_head);
+    //kernel_printf("slab_free_1\n");
+    //kernel_printf("slab_object is: %x\n", object);
     if (!(s_head->nr_objs)) {
         kernel_printf("ERROR : slab_free error!\n");
         // die();
@@ -160,18 +188,24 @@ void slab_free(struct kmem_cache *cache, void *object) {
     }
 
     ptr = (unsigned int *)((unsigned char *)object + cache->offset);
+    //kernel_printf("ptr is: %x\n", ptr);
+    //kernel_printf("end_ptr is: %x\n", s_head->end_ptr);
     *ptr = *((unsigned int *)(s_head->end_ptr));
+    //kernel_printf("*ptr is: %x\n", *ptr);
     *((unsigned int *)(s_head->end_ptr)) = (unsigned int)object;
+    s_head->end_ptr = ptr;
     --(s_head->nr_objs);
-    kernel_printf("slab_free_2\n");
-    if (list_empty(&(opage->list)))
+    //kernel_printf("slab_free_2\n");
+    if (list_empty(&(opage->list))){
         return;
-
+    }
+        
     if (!(s_head->nr_objs)) {
+        kernel_printf("free the page, since all of those page has been freed");
         __free_pages(opage, 0);
         return;
     }
-    kernel_printf("slab_free_3\n");
+    //kernel_printf("slab_free_3\n");
     list_del_init(&(opage->list));
     list_add_tail(&(opage->list), &(cache->node.partial));
 }
@@ -211,7 +245,7 @@ void *kmalloc(unsigned int size) {
             size >>= 1;
             bplevel++;
         }
-        kernel_printf("bplevel is: %x\n", bplevel);
+        //kernel_printf("bplevel is: %x\n", bplevel);
         return (void *)(KERNEL_ENTRY | (unsigned int)alloc_pages(bplevel));
     }
 
@@ -226,12 +260,14 @@ void *kmalloc(unsigned int size) {
 
 void kfree(void *obj) {
     struct page *page;
-    kernel_printf("kfree\n");
+    //kernel_printf("kfree\n");
 
     obj = (void *)((unsigned int)obj & (~KERNEL_ENTRY));
     page = pages + ((unsigned int)obj >> PAGE_SHIFT);
     if (!(page->flag == _PAGE_SLAB))
         return free_pages((void *)((unsigned int)obj & ~((1 << PAGE_SHIFT) - 1)), page->bplevel);
-    kernel_printf("slab_free\n");
+    //kernel_printf("slab_free\n");
+    // return slab_free(page->virtual, (void *)((unsigned int)obj | KERNEL_ENTRY));
     return slab_free(page->virtual, obj);
+       
 }

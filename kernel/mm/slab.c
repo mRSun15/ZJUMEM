@@ -151,7 +151,7 @@ void slab_free(struct kmem_cache *cache, void *object) {
     struct page *opage = pages + ((unsigned int)object >> PAGE_SHIFT);
     unsigned int *ptr;
     struct slab_head *s_head = (struct slab_head *)KMEM_ADDR(opage, pages);
-
+    kernel_printf("slab_free_1\n");
     if (!(s_head->nr_objs)) {
         kernel_printf("ERROR : slab_free error!\n");
         // die();
@@ -163,7 +163,7 @@ void slab_free(struct kmem_cache *cache, void *object) {
     *ptr = *((unsigned int *)(s_head->end_ptr));
     *((unsigned int *)(s_head->end_ptr)) = (unsigned int)object;
     --(s_head->nr_objs);
-
+    kernel_printf("slab_free_2\n");
     if (list_empty(&(opage->list)))
         return;
 
@@ -171,7 +171,7 @@ void slab_free(struct kmem_cache *cache, void *object) {
         __free_pages(opage, 0);
         return;
     }
-
+    kernel_printf("slab_free_3\n");
     list_del_init(&(opage->list));
     list_add_tail(&(opage->list), &(cache->node.partial));
 }
@@ -195,7 +195,7 @@ unsigned int get_slab(unsigned int size) {
 void *kmalloc(unsigned int size) {
     struct kmem_cache *cache;
     unsigned int bf_index;
-
+    unsigned int bplevel;
     if (!size)
         return 0;
 
@@ -203,8 +203,16 @@ void *kmalloc(unsigned int size) {
     // solve this
     if (size > kmalloc_caches[PAGE_SHIFT - 1].objsize) {
         size += (1 << PAGE_SHIFT) - 1;
-        size &= ~((1 << PAGE_SHIFT) - 1);
-        return (void *)(KERNEL_ENTRY | (unsigned int)alloc_pages(size >> PAGE_SHIFT));
+        size &= ~((1 << PAGE_SHIFT) - 1);    
+        bplevel = 0;
+        size = size >> (PAGE_SHIFT);
+        size -=1;
+        while(size > 0){
+            size >>= 1;
+            bplevel++;
+        }
+        kernel_printf("bplevel is: %x\n", bplevel);
+        return (void *)(KERNEL_ENTRY | (unsigned int)alloc_pages(bplevel));
     }
 
     bf_index = get_slab(size);
@@ -218,11 +226,12 @@ void *kmalloc(unsigned int size) {
 
 void kfree(void *obj) {
     struct page *page;
+    kernel_printf("kfree\n");
 
     obj = (void *)((unsigned int)obj & (~KERNEL_ENTRY));
     page = pages + ((unsigned int)obj >> PAGE_SHIFT);
     if (!(page->flag == _PAGE_SLAB))
         return free_pages((void *)((unsigned int)obj & ~((1 << PAGE_SHIFT) - 1)), page->bplevel);
-
+    kernel_printf("slab_free\n");
     return slab_free(page->virtual, obj);
 }

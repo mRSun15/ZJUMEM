@@ -107,8 +107,66 @@ void parse_cmd() {
         bootmap_info();
         buddy_info();
     } else if (kernel_strcmp(ps_buffer, "mmtest") == 0) {
-        kernel_printf("kmalloc : %x, size = 1KB\n", kmalloc(1024));
-    } else {
+        void* address = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 1KB\n", address);
+        kfree(address);
+        kernel_printf("kfree succeed");
+    } else if(kernel_strcmp(ps_buffer, "slubtest") == 0){
+        unsigned int  size_kmem_cache[PAGE_SHIFT] = {96, 192, 8, 16, 32, 64, 128, 256, 512, 1024};
+        unsigned int i;
+        for(i = 0; i < 10; i++)
+        {
+            void* address = kmalloc(size_kmem_cache[i]);
+            kernel_printf("kmalloc : %x, size = 1KB\n", address);
+        }
+    } else if(kernel_strcmp(ps_buffer, "buddytest") == 0){
+        void* address = kmalloc(4096*2*2*2*2);
+        kernel_printf("kmalloc : %x, size = 1KB\n", address);
+        address = kmalloc(4096*2*2*2);
+        kernel_printf("kmalloc : %x, size = 1KB\n", address);
+        address = kmalloc(4096*2*2);
+        kernel_printf("kmalloc : %x, size = 1KB\n", address);
+        address = kmalloc(4096*2);
+        kernel_printf("kmalloc : %x, size = 1KB\n", address);
+    }else if(kernel_strcmp(ps_buffer, "buddy") == 0)
+    {
+        void *address = kmalloc(4096);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address);
+        address = kmalloc(4096);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address);
+        address = kmalloc(4096);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address);
+        address = kmalloc(2*4096);
+        kernel_printf("kmalloc : %x, size = 8KB\n", address);
+        address = kmalloc(4096);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address);
+        kfree(address);
+        kfree(address);
+        address = kmalloc(4096);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address);
+        address = kmalloc(4096);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address);
+        address = kmalloc(4096);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address);
+        address = kmalloc(4096);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address);
+        
+    }else if(kernel_strcmp(ps_buffer, "slub") == 0)
+    {
+        void *address1 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address1);
+        void *address2 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address2);
+        void *address3 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address3);
+        kfree(address2);
+        address2 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address2);
+        address2 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address2);
+        
+    }
+    else {
         kernel_puts(ps_buffer, 0xfff, 0);
         kernel_puts(": command not found\n", 0xfff, 0);
     }

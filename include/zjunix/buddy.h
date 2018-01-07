@@ -51,7 +51,7 @@ struct buddy_sys {
 #define _is_same_bpgroup(page, bage) (((*(page)).bplevel == (*(bage)).bplevel))
 #define _is_same_bplevel(page, lval) ((*(page)).bplevel == (lval))
 #define set_bplevel(page, lval) ((*(page)).bplevel = (lval))
-#define set_flag(page, val) ((*(page)).flag |= (val))
+#define set_flag(page, val) ((*(page)).flag = (val))
 #define clean_flag(page, val) ((*(page)).flag &= ~(val))
 #define has_flag(page, val) ((*(page)).flag & val)
 #define set_ref(page, val) ((*(page)).reference = (val))

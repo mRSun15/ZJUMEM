@@ -15,12 +15,17 @@ struct kmem_cache kmalloc_caches[PAGE_SHIFT];
 static unsigned int size_kmem_cache[PAGE_SHIFT] = {96, 192, 8, 16, 32, 64, 128, 256, 512, 1024, 1536, 2048};
 
 unsigned int judge_slab_free(struct kmem_cache *cache, void *object){
+    //kernel_printf("judeg slab free condition, address is: %x", object);
     struct page* objectPage = pages + ((unsigned int)object >> PAGE_SHIFT);
     object = (void *)((unsigned int)object | KERNEL_ENTRY);
     void **freeSpacePtr = objectPage->slabp;
     unsigned int flag = 0;//not found
+    if(objectPage->flag != _PAGE_SLAB)
+        return 1;
+    *freeSpacePtr = (void *)((unsigned int)(*freeSpacePtr) | KERNEL_ENTRY);
     while(!(is_bound((unsigned int )(*(freeSpacePtr)), 1 << PAGE_SHIFT)))
     {
+        //kernel_printf("judge_slab_free: freeSpacePtr's value is: %x\n", *(freeSpacePtr));
         if(*(freeSpacePtr) == object)
         {    
             flag = 1;
@@ -29,7 +34,7 @@ unsigned int judge_slab_free(struct kmem_cache *cache, void *object){
         freeSpacePtr = (void **)((unsigned int)*(freeSpacePtr) + cache->offset);
     }
     if(flag != 0)
-        return 1;
+        return 1;//represent in the free space, which has been freed.
     else
         return 0;
 }
@@ -165,6 +170,7 @@ slalloc_normal:
 slalloc_end:
     // slab may be full after this allocation
     if (is_bound((unsigned int )(*(cache->cpu.page->slabp)), 1 << PAGE_SHIFT)) {
+        kernel_printf("slab is full\n");
         list_add_tail(&(cache->cpu.page->list), &(cache->node.full));
         init_kmem_cpu(&(cache->cpu));
     }
@@ -172,9 +178,13 @@ slalloc_end:
 }
 
 void slab_free(struct kmem_cache *cache, void *object) {
+    if(judge_slab_free(cache, object)){
+        kernel_printf("slab_free_failed, because it has been freed before\n");
+        return;
+    }
     struct page *opage = pages + ((unsigned int)object >> PAGE_SHIFT);
     object = (void *)((unsigned int)object | KERNEL_ENTRY);
-    kernel_printf("slab_free is : %x\n", object);
+    //kernel_printf("slab_free is : %x\n", object);
     unsigned int *ptr;
     struct slab_head *s_head = (struct slab_head *)KMEM_ADDR(opage, pages);
     //kernel_printf("slab_head is: %x\n", s_head);
@@ -190,19 +200,35 @@ void slab_free(struct kmem_cache *cache, void *object) {
     ptr = (unsigned int *)((unsigned char *)object + cache->offset);
     //kernel_printf("ptr is: %x\n", ptr);
     //kernel_printf("end_ptr is: %x\n", s_head->end_ptr);
-    *ptr = *((unsigned int *)(s_head->end_ptr));
-    //kernel_printf("*ptr is: %x\n", *ptr);
-    *((unsigned int *)(s_head->end_ptr)) = (unsigned int)object;
-    s_head->end_ptr = ptr;
+    if(ptr != s_head->end_ptr){
+        *ptr = *((unsigned int *)(s_head->end_ptr));
+        //kernel_printf("*ptr is: %x\n", *ptr);
+        *((unsigned int *)(s_head->end_ptr)) = (unsigned int)object;
+        s_head->end_ptr = ptr;
+    }else{
+        return;
+    //     opage->slabp = (void**) &object;
+    //     // kernel_printf("")
+    //     kernel_printf("opage->slabp is: %x ", *(opage->slabp));
+    //     if(cache->cpu.page == opage)
+    //         cache->cpu.freeobj = opage->slabp;
+    }
     --(s_head->nr_objs);
     //kernel_printf("slab_free_2\n");
     if (list_empty(&(opage->list))){
         return;
     }
+    kernel_printf("slab_free successful, the address is %x\n", object);
         
     if (!(s_head->nr_objs)) {
-        kernel_printf("free the page, since all of those page has been freed");
+        list_del_init(&(opage->list));
+        //kernel_printf("free the page, since all of those page has been free\n");
         __free_pages(opage, 0);
+        if(cache->cpu.page == opage){
+            //kernel_printf("initialize the cache_cpu\n");
+            init_kmem_cpu(&(cache->cpu));
+        }
+        //kernel_printf("slab free finished! \n");
         return;
     }
     //kernel_printf("slab_free_3\n");

@@ -162,6 +162,7 @@ void parse_cmd() {
         kfree(address2);
         kfree(address1);
         kfree(address2);
+        kfree(address1);
         address2 = kmalloc(1024);
         kernel_printf("kmalloc : %x, size = 4KB\n", address2);
         address2 = kmalloc(1024);
@@ -170,6 +171,26 @@ void parse_cmd() {
         kernel_printf("kmalloc : %x, size = 4KB\n", address2);
         address2 = kmalloc(1024);
         kernel_printf("kmalloc : %x, size = 4KB\n", address2);
+    }else if(kernel_strcmp(ps_buffer, "slub2") == 0){
+        void *address1 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address1);
+        void *address2 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address2);
+        void *address3 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address3);
+        kfree(address1);
+        kfree(address2);
+        kfree(address3);
+        kernel_printf("free a page\n");
+        address2 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address2);
+        address2 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address2);
+        address2 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address2);
+        address2 = kmalloc(1024);
+        kernel_printf("kmalloc : %x, size = 4KB\n", address2);
+        
     }
     else {
         kernel_puts(ps_buffer, 0xfff, 0);

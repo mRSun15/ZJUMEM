@@ -178,21 +178,26 @@ void __free_pages(struct page *pbpage, unsigned int bplevel) {
     unsigned int page_idx, buddy_group_idx;
     unsigned int combined_idx, tmp;
     struct page *buddy_group_page;
-
+    unsigned int test = 0;
+    //kernel_printf("buddy_free.\n");
     // dec_ref(pbpage, 1);
     // if(pbpage->reference)
     //	return;
-    //if(!(has_flag(pbpage,_PAGE_ALLOCED) || has_flag(pbpage, _PAGE_SLAB))){
-    if(!(has_flag(pbpage, _PAGE_ALLOCED))){
+    if(!(has_flag(pbpage,_PAGE_ALLOCED) || has_flag(pbpage, _PAGE_SLAB))){
+    //if(!(has_flag(pbpage, _PAGE_ALLOCED))){
         //original bug!!
         kernel_printf("kfree_again. \n");
         return;
+    }else if(has_flag(pbpage, _PAGE_SLAB)){
+        // kernel_printf("kfree slab page. \n");
+        // test = 1;
+        // kernel_printf("page number is: %x", pbpage);
     }
     // if(pbpage->bplevel != -1){
     //     kernel_printf("kfree_again.\n");
     //     return;    
     // }
-    // kernel_printf("free_bplevel is: %x", pbpage->bplevel);
+    //kernel_printf("free_bplevel is: %x", pbpage->bplevel);
     lockup(&buddy.lock);
     set_flag(pbpage,_PAGE_RESERVED);
     page_idx = pbpage - buddy.start_page; 
@@ -209,7 +214,7 @@ void __free_pages(struct page *pbpage, unsigned int bplevel) {
         // original bug!!
         if(buddy_group_page->flag == _PAGE_ALLOCED){
             // another memory has been allocated.
-            kernel_printf("the buddy memory has been allocated");
+            kernel_printf("the buddy memory has been allocated\n");
             break;
         }
         list_del_init(&buddy_group_page->list);
@@ -220,11 +225,20 @@ void __free_pages(struct page *pbpage, unsigned int bplevel) {
         page_idx = combined_idx;
         ++bplevel;
     }
+    // if(test){
+    //     kernel_printf("slab page free nearly finished!\n");
+    // }
     set_bplevel(pbpage, bplevel);
 //    list_add(&(pbpage->list), &(buddy.freelist[bplevel].free_head));
-    //kernel_printf("free_bplevel is: %x", bplevel);
+    //kernel_printf("final free_bplevel is: %x", bplevel)
     buddy_list_add(&(pbpage->list), &(buddy.freelist[bplevel].free_head), bplevel);
+    // if(test){
+    //     kernel_printf("slab page free nearly finished!\n");
+    // }
     ++buddy.freelist[bplevel].nr_free;
+    // if(test){
+    //     kernel_printf("slab page free finished!\n");
+    // }
     // kernel_printf("v%x__addto__%x\n", &(pbpage->list),
     // &(buddy.freelist[bplevel].free_head));
     unlock(&buddy.lock);
@@ -272,6 +286,7 @@ found:
         buddy_list_add(&(buddy_page->list), &(free->free_head), current_order);
         ++(free->nr_free);
         set_bplevel(buddy_page, current_order);
+        set_flag(buddy_page, _PAGE_RESERVED);
     }
 
     unlock(&buddy.lock);
